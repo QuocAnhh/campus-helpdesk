@@ -6,4 +6,6 @@ httpx
 redis
 qdrant-client
 SQLAlchemy
-pymysql 
+pymysql
+openai
+google-generativeai 

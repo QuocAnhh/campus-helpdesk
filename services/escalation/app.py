@@ -1,12 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List, Dict
-import sys
-import os
-
-# Add common to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'common')))
-from llm import chat
+from common.llm import chat
 
 app = FastAPI(title="Escalation Service")
 

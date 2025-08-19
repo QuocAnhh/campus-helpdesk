@@ -1,84 +1,119 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List, Dict
+from typing import List, Dict
 import os
 import uuid
-import httpx
+import json
 from redis import Redis
+from agents import AgentManager
 
+# --- Setup ---
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 r = Redis.from_url(REDIS_URL, decode_responses=True)
 
-ROUTER_URL = os.getenv("ROUTER_URL", "http://localhost:8000")
-POLICY_URL = os.getenv("POLICY_URL", "http://localhost:8000")
-ANSWER_URL = os.getenv("ANSWER_URL", "http://localhost:8000")
-TICKET_URL = os.getenv("TICKET_URL", "http://localhost:8000")
+app = FastAPI(title="Campus Helpdesk Gateway")
 
+# --- CORS ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-app = FastAPI()
+# --- Initialize Agent Manager ---
+agent_manager = AgentManager()
 
+# --- Chat History Management ---
+def get_chat_history(session_id: str, limit: int = 10) -> List[Dict]:
+    if not session_id:
+        return []
+    key = f"chat_history:{session_id}"
+    history = r.lrange(key, 0, limit - 1)
+    return [json.loads(h) for h in reversed(history)]
+
+def add_to_chat_history(session_id: str, user_message: str, bot_message: str):
+    if not session_id:
+        return
+    key = f"chat_history:{session_id}"
+    turn = {"user": user_message, "bot": bot_message}
+    r.lpush(key, json.dumps(turn))
+    r.ltrim(key, 0, 99)
+
+# --- Pydantic Models ---
 class AskBody(BaseModel):
     channel: str
     text: str
     student_id: str | None = None
+    session_id: str | None = None
 
-
+# --- Main Endpoint ---
 @app.post("/ask")
-async def ask(body: AskBody, use_llm: bool = False):
+async def ask(body: AskBody):
+    """
+    Endpoint chính để xử lý yêu cầu từ sinh viên thông qua hệ thống multi-agent
+    """
     req_id = str(uuid.uuid4())
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        # 1) Route intent
-        classify_endpoint = "/classify_llm" if use_llm else "/classify"
-        route = await client.post(f"{ROUTER_URL}{classify_endpoint}", json=body.model_dump())
-        route.raise_for_status()
-        intent = route.json()
-
-        # 2) Policy/citation (optional per intent)
-        pol = await client.post(f"{POLICY_URL}/check", json={
-            "intent": intent,
-            "text": body.text
-        })
-        pol.raise_for_status()
-        policy_res = pol.json()
-        citations = policy_res.get("citations", [])
-
-        # 3) Compose answer
-        compose_endpoint = "/compose_llm" if use_llm else "/compose"
-        ans = await client.post(f"{ANSWER_URL}{compose_endpoint}", json={
-            "intent": intent,
-            "citations": citations,
-            "channel": body.channel,
-            "student_id": body.student_id
-        })
-        ans.raise_for_status()
-        answer = ans.json()
-
-        # 4) Create/merge ticket
-        await client.post(f"{TICKET_URL}/ticket", json={
-            "subject": intent.get("label", "helpdesk"),
-            "category": intent.get("label", "general"),
-            "priority": "normal",
-            "content": {
-                "student_id": body.student_id,
-                "text": body.text,
-                "answer": answer
+    chat_history = get_chat_history(body.session_id)
+    
+    try:
+        # Xử lý tin nhắn thông qua Agent Manager
+        response = await agent_manager.process_message(
+            user_message=body.text,
+            chat_history=chat_history,
+            session_id=body.session_id
+        )
+        
+        final_reply = response.get("reply", "Xin lỗi, tôi không thể xử lý yêu cầu này.")
+        
+        # Cập nhật lịch sử chat
+        add_to_chat_history(body.session_id, body.text, final_reply)
+        
+        # Trả về response
+        return {
+            "request_id": req_id,
+            "answer": {
+                "reply": final_reply,
+                "agent_info": {
+                    "agent": response.get("agent", "unknown"),
+                    "routing_info": response.get("routing_info", {}),
+                    "suggested_action": response.get("suggested_action"),
+                    "sources": response.get("sources", [])
+                }
             }
-        })
+        }
+        
+    except Exception as e:
+        print(f"Error in /ask endpoint: {e}")
+        return {
+            "request_id": req_id,
+            "answer": {
+                "reply": "Xin lỗi, hệ thống đang gặp sự cố. Bạn vui lòng thử lại sau.",
+                "agent_info": {
+                    "agent": "error",
+                    "routing_info": {"error": str(e)}
+                }
+            }
+        }
 
-    # cache last answer
-    r.setex(f"answer:{req_id}", 300, str(answer))
-    
-    response = {"request_id": req_id, "answer": answer}
-    
-    # Handle suggested tool calls
-    if "suggested_tool_call" in answer and answer["suggested_tool_call"]:
-        if intent.get("label") in ["it.reset_password", "kytuc.report_issue"]:
-             response["suggested_tool_call"] = answer["suggested_tool_call"]
+# --- Health Check ---
+@app.get("/health")
+async def health_check():
+    """Kiểm tra tình trạng hệ thống"""
+    available_agents = agent_manager.get_available_agents()
+    return {
+        "status": "healthy",
+        "available_agents": available_agents,
+        "total_agents": len(available_agents)
+    }
 
-    return response
-
-
-@app.get("/tickets")
-async def tickets():
-    # demo: pull from Redis log if exists in ticket service, else stub
-    return {"tickets": "See ticket service at /status"}
+# --- Agent Info ---
+@app.get("/agents")
+async def get_agents():
+    """Lấy thông tin về các agent có sẵn"""
+    return {
+        "available_agents": agent_manager.get_available_agents(),
+        "description": "Multi-agent system for Campus Helpdesk"
+    }

@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
-from . import database, models
+import database
+import models
 
 # Create tables in the database
 models.Base.metadata.create_all(bind=database.engine)
