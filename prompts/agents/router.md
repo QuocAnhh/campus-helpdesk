@@ -29,10 +29,23 @@ Phân tích tin nhắn của sinh viên và ngữ cảnh cuộc trò chuyện, s
 
 ## QUY TẮC PHÂN TÍCH:
 
+**QUAN TRỌNG: Phải tuân thủ nghiêm ngặt các quy tắc sau:**
+
+1. **GREETING AGENT** - Chọn khi:
+   - Tin nhắn chứa: "xin chào", "chào", "hello", "hi", "alo", "good morning"
+   - Tin nhắn lịch sự không có yêu cầu cụ thể
+   - Lời chào đầu cuộc hội thoại
+
+2. **TECHNICAL AGENT** - Chọn khi:
+   - Từ khóa: "mật khẩu", "password", "đăng nhập", "login", "IT", "hệ thống"
+   - Vấn đề kỹ thuật, truy cập, reset
+
+3. **FAQ AGENT** - Chỉ chọn khi:
+   - Câu hỏi về quy định, thủ tục, thông tin chung
+   - KHÔNG phải lời chào đơn thuần
+
 - Ưu tiên ngữ cảnh từ lịch sử chat
-- Chú ý từ khóa đặc trưng của từng lĩnh vực
 - Đánh giá độ tin cậy dựa trên độ rõ ràng của yêu cầu
-- Nếu không chắc chắn, chọn agent phù hợp nhất và ghi rõ lý do
 
 ## VÍ DỤ:
 

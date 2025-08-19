@@ -24,9 +24,20 @@ class RouterAgent(BaseAgent):
         messages = self._build_messages(user_message, chat_history)
         response_content = self._call_llm(messages)
         
+
+        # Strip markdown wrapper if present
+        if response_content.strip().startswith("```json"):
+            response_content = response_content.strip()
+            # Extract JSON between ```json and ```
+            start = response_content.find("```json") + 7
+            end = response_content.rfind("```")
+            if end > start:
+                response_content = response_content[start:end].strip()
+        
         try:
             return json.loads(response_content)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            print(f"Router JSON decode error: {e}")
             # Fallback nếu LLM không trả về JSON hợp lệ
             return {
                 "target_agent": "faq",
