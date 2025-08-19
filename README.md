@@ -1,156 +1,247 @@
 # Campus Helpdesk
 
-This repository contains the source code for the Campus Helpdesk, a microservices-based application designed to assist students with common issues and requests.
+Hệ thống hỗ trợ sinh viên thông minh sử dụng kiến trúc Multi-Agent với AI, được thiết kế để giải quyết các vấn đề và yêu cầu thường gặp của sinh viên.
 
-## Architecture
+## Kiến trúc Multi-Agent
 
-The system is built on a microservices architecture, with the following key components:
+Hệ thống hoạt động như một hệ thống multi-agent được điều phối thông minh, trong đó mỗi agent chuyên biệt về một lĩnh vực cụ thể:
 
--   **Gateway**: The main entry point for all requests. It orchestrates the flow between the other services.
--   **Router**: Determines the user's intent based on their query.
--   **Policy**: Checks for relevant policies and returns citations.
--   **Answer**: Composes a response to the user's query.
--   **Action**: Executes actions on behalf of the user (e.g., resetting a password).
--   **Ticket**: Manages helpdesk tickets.
--   **Escalation**: Summarizes tickets for human operators.
--   **Ingest**: Handles incoming messages from various channels (e.g., Zalo).
+### 🤖 **Các Agent Chuyên Biệt:**
 
-## Multi-Agent Workflow
+-   **Router Agent**: Phân tích ngữ cảnh cuộc trò chuyện và định tuyến đến agent phù hợp
+-   **Greeting Agent**: Xử lý lời chào và tạo bầu không khí thân thiện
+-   **Technical Agent**: Hỗ trợ kỹ thuật IT (đặt lại mật khẩu, sự cố hệ thống)
+-   **FAQ Agent**: Trả lời câu hỏi thông tin chung về quy định, thủ tục
+-   **Gateway Service**: Điều phối toàn bộ hệ thống multi-agent
 
-The system operates as a coordinated multi-agent system where each microservice acts as a specialized agent. The `Gateway` service orchestrates the entire process.
+### 🔧 **Các Service Hỗ Trợ:**
 
-### Workflow Diagram
+-   **Policy Service**: Tìm kiếm thông tin từ knowledge base (RAG)
+-   **Ticket Service**: Quản lý và theo dõi tickets hỗ trợ
+-   **Action Service**: Thực hiện các hành động cụ thể (reset password, etc.)
+-   **Escalation Service**: Tóm tắt và chuyển vấn đề phức tạp cho nhân viên
+-   **Ingest Service**: Xử lý tin nhắn từ các kênh khác nhau (Zalo, Web)
+
+## Luồng Hoạt Động Multi-Agent
 
 ```mermaid
 sequenceDiagram
     participant User
     participant Gateway as Gateway (Orchestrator)
     participant Router as Router Agent
-    participant Policy as Policy Agent (RAG)
-    participant Answer as Answer Agent
-    participant Ticket as Ticket Agent
+    participant Agent as Specialized Agent
+    participant Services as Support Services
 
-    User->>Gateway: POST /ask (text, use_llm=true/false)
-    Gateway->>Router: 1. Classify Intent (text)
-    Router-->>Gateway: Intent {label, confidence}
+    User->>Gateway: POST /ask (text, session_id)
+    Gateway->>Router: 1. Analyze Context & Route
+    Router-->>Gateway: {target_agent, reason, confidence}
     
-    Gateway->>Policy: 2. Check Policy (intent, text)
-    Policy-->>Gateway: Citations {docs, quotes}
+    Gateway->>Agent: 2. Process Request
+    Agent->>Services: 3. Use Support Services (if needed)
+    Services-->>Agent: Service Response
+    Agent-->>Gateway: Formatted Response
     
-    Gateway->>Answer: 3. Compose Answer (intent, citations)
-    Answer-->>Gateway: Formatted Reply {reply, citations, tool_call?}
-    
-    Gateway->>Ticket: 4. Log Interaction (user_query, final_answer)
-    Ticket-->>Gateway: Log confirmation
-    
-    Gateway-->>User: Final Response {request_id, answer}
+    Gateway-->>User: Final Answer {reply, agent_info, sources}
 ```
 
-### Step-by-Step Explanation
+### Quy Trình Xử Lý:
 
-1.  **Request Reception (Gateway)**: A user sends a request to the `POST /ask` endpoint of the `Gateway`. The request includes the user's query (`text`) and an optional boolean `use_llm` to decide which workflow to use.
+1.  **Tiếp Nhận Yêu Cầu**: User gửi tin nhắn đến Gateway với session_id để theo dõi ngữ cảnh
+2.  **Phân Tích & Định Tuyến**: Router Agent phân tích tin nhắn và lịch sử chat, chọn agent phù hợp
+3.  **Xử Lý Chuyên Biệt**: Agent được chọn xử lý yêu cầu với personality và expertise riêng
+4.  **Hỗ Trợ Dịch Vụ**: Agent có thể gọi các service hỗ trợ (Policy, Action, Ticket)
+5.  **Phản Hồi Cuối**: Gateway trả về câu trả lời kèm thông tin về agent đã xử lý
 
-2.  **Intent Classification (Router Agent)**:
-    *   The `Gateway` forwards the user's `text` to the `Router` agent.
-    *   If `use_llm=true`, it calls the `/classify_llm` endpoint, which uses an LLM to determine the intent, confidence score, and any relevant entities.
-    *   If `use_llm=false`, it calls the `/classify` endpoint, which uses a simpler, rule-based method.
-    *   The `Router` agent returns a structured `intent` object.
+## Tính Năng Nổi Bật
 
-3.  **Policy & Knowledge Retrieval (Policy Agent - RAG)**:
-    *   The `Gateway` sends the `intent` and the original `text` to the `Policy agent's `/check` endpoint.
-    *   The `Policy` agent acts as a Retrieval-Augmented Generation (RAG) system. It searches its knowledge base (e.g., a Qdrant vector database) for relevant policy documents or FAQs.
-    *   It returns a list of `citations` (source documents, quotes) that are relevant to the query.
+### 🧠 **Thông Minh Ngữ Cảnh**
+- Nhớ lịch sử cuộc trò chuyện qua session_id
+- Hiểu được câu trả lời ngắn như "có", "không", "được"
+- Phân tích ý định dựa trên ngữ cảnh
 
-4.  **Answer Composition (Answer Agent)**:
-    *   The `Gateway` now has the `intent` from the `Router` and `citations` from the `Policy` agent. It sends all this information to the `Answer` agent.
-    *   If `use_llm=true`, the `/compose_llm` endpoint formats this context into a detailed prompt and asks an LLM to generate a helpful, polite, and context-aware answer in Vietnamese.
-    *   If `use_llm=false`, the `/compose` endpoint uses predefined templates corresponding to the intent.
-    *   Crucially, the `Answer` agent can also suggest a `tool_call` (e.g., `reset_password`) if the intent requires a direct action.
+### 🎯 **Chuyên Biệt Hóa**
+- Mỗi agent có personality và expertise riêng
+- Trả lời tự nhiên như nhân viên hỗ trợ thực
+- Dễ dàng mở rộng thêm agent mới
 
-5.  **Ticket Logging (Ticket Agent)**:
-    *   The `Gateway` takes the final composed answer and the original query and sends them to the `Ticket` agent.
-    *   The `Ticket` agent logs the entire interaction into the database (MySQL) for record-keeping, analysis, and potential escalation.
+### 🔄 **Linh Hoạt**
+- Hỗ trợ nhiều kênh (Web, Zalo, API)
+- Tự động escalate vấn đề phức tạp
+- Theo dõi và logging đầy đủ
 
-6.  **Final Response (Gateway)**:
-    *   The `Gateway` combines the final answer, citations, and any suggested tool calls into a single response object.
-    *   This final response is sent back to the user. The frontend can then display the answer and, if a `tool_call` is present, render a button or prompt for the user to confirm the action.
+## Cài Đặt và Chạy
 
-## Getting Started
+### Yêu Cầu Hệ Thống
 
-### Prerequisites
-
--   Docker and Docker Compose
+-   Docker và Docker Compose
 -   Python 3.11+
--   An `.env` file (you can copy `.env.example` to get started)
+-   File `.env` (copy từ `.env.example`)
 
-### Installation and Running
+### Hướng Dẫn Cài Đặt
 
-1.  **Clone the repository:**
+1.  **Clone repository:**
     ```bash
     git clone https://github.com/your-repo/campus-helpdesk.git
     cd campus-helpdesk
     ```
 
-2.  **Set up the environment:**
-    Copy the `.env.example` file to `.env` and fill in the required values.
+2.  **Thiết lập môi trường:**
     ```bash
     cp .env.example .env
+    # Chỉnh sửa file .env với các thông tin cần thiết
     ```
 
-3.  **Build and run the services:**
+3.  **Chạy hệ thống:**
     ```bash
     docker-compose up --build -d
     ```
-    The services will be available at their respective ports, as defined in `docker-compose.yml`.
+
+4.  **Truy cập ứng dụng:**
+    - **Web Interface**: http://localhost:5173
+    - **API Gateway**: http://localhost:8000
+    - **Admin Dashboard**: http://localhost:5173/admin
 
 ## API Endpoints
 
-### Gateway
+### Gateway (Port 8000)
 
--   `POST /ask`: The main endpoint for asking questions.
-    -   Query parameter: `use_llm` (boolean, optional): Whether to use the LLM-based services.
-    -   Request body:
-        ```json
-        {
-            "channel": "web",
-            "text": "How do I reset my password?",
-            "student_id": "12345"
+#### Chat với Multi-Agent System
+```bash
+POST /ask
+Content-Type: application/json
+
+{
+    "channel": "web",
+    "text": "Làm thế nào để đặt lại mật khẩu?",
+    "student_id": "12345",
+    "session_id": "unique-session-id"
+}
+```
+
+**Response:**
+```json
+{
+    "request_id": "uuid",
+    "answer": {
+        "reply": "Mình sẽ giúp bạn đặt lại mật khẩu...",
+        "agent_info": {
+            "agent": "technical",
+            "routing_info": {
+                "selected_agent": "technical",
+                "reason": "Yêu cầu hỗ trợ kỹ thuật về mật khẩu",
+                "confidence": 0.95
+            },
+            "suggested_action": {...},
+            "sources": [...]
         }
-        ```
-    -   Example with `curl`:
-        ```bash
-        curl -X POST "http://localhost:8000/ask?use_llm=true" -H "Content-Type: application/json" -d '{
-            "channel": "web",
-            "text": "làm thế nào để đặt lại mật khẩu của tôi?",
-            "student_id": "12345"
-        }'
-        ```
+    }
+}
+```
 
-### Policy Service
+#### Kiểm Tra Tình Trạng Hệ Thống
+```bash
+GET /health
+```
 
--   `POST /ingest_policies`: Ingests policy documents into the vector store.
--   `POST /rag_answer`: (Experimental) Returns a RAG-based answer.
+#### Xem Danh Sách Agents
+```bash
+GET /agents
+```
 
-## LLM Integration
+### Policy Service (Port 8001)
 
-The system can be configured to use a Large Language Model (LLM) for intent classification and response composition. To enable this, set the `LLM_PROVIDER` environment variable to one of the following values:
+-   `POST /ingest_policies`: Import tài liệu chính sách vào knowledge base
+-   `POST /check`: Tìm kiếm thông tin liên quan từ knowledge base
 
--   `openai`
--   `vllm`
--   `ollama`
+## Cấu Hình LLM
 
-If `LLM_PROVIDER` is not set, the system will fall back to a rule-based stub.
+Hệ thống hỗ trợ nhiều provider LLM:
+
+```env
+LLM_PROVIDER=openai|gemini|vllm|ollama
+LLM_MODEL=gpt-4o-mini|gemini-1.5-flash
+OPENAI_API_KEY=your-key
+GOOGLE_API_KEY=your-key
+```
+
+Nếu không cấu hình LLM, hệ thống sẽ sử dụng stub logic đơn giản.
+
+## Mở Rộng Hệ Thống
+
+### Thêm Agent Mới
+
+1. **Tạo Agent Class:**
+   ```python
+   # services/gateway/agents/schedule.py
+   from .base import BaseAgent
+   
+   class ScheduleAgent(BaseAgent):
+       def __init__(self):
+           super().__init__("Schedule", "schedule.md")
+       
+       def process(self, user_message, chat_history, context=None):
+           # Implementation
+           pass
+   ```
+
+2. **Tạo System Prompt:**
+   ```markdown
+   # prompts/agents/schedule.md
+   Bạn là chuyên viên tư vấn lịch học...
+   ```
+
+3. **Đăng Ký Agent:**
+   ```python
+   # services/gateway/agents/manager.py
+   self.agents = {
+       # ... existing agents
+       "schedule": ScheduleAgent(),
+   }
+   ```
+
+4. **Cập Nhật Router:**
+   ```markdown
+   # prompts/agents/router.md
+   8. **schedule** - Agent Lịch học: Xem lịch học, lịch thi, thời khóa biểu
+   ```
+
+### Thêm Service Mới
+
+Tạo service mới trong `services/` và thêm vào `docker-compose.yml`.
 
 ## Testing
 
-To run the tests, you will need to install the development dependencies:
-
 ```bash
+# Cài đặt dependencies cho testing
 pip install -r requirements-dev.txt
+
+# Chạy tests
+pytest tests/ -v
 ```
 
-Then, you can run the tests with `pytest`:
+## Frontend
 
-```bash
-pytest -q
-```
+Ứng dụng web React với:
+- **Giao diện chat** cho sinh viên tại `/`
+- **Dashboard admin** tại `/admin`
+- **Real-time messaging** với session tracking
+- **Responsive design** với Tailwind CSS
+
+## Monitoring & Logging
+
+- **Health checks** tại `/health`
+- **Agent performance** tracking
+- **Redis** cho session management
+- **MySQL** cho ticket storage
+
+## Đóng Góp
+
+1. Fork repository
+2. Tạo feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Tạo Pull Request
+
+## License
+
+Distributed under the MIT License. See `LICENSE` for more information.
