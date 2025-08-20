@@ -4,15 +4,11 @@ FROM node:20-alpine as build
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy the package.json and package-lock.json (or yarn.lock) files
-COPY package*.json ./
-COPY bun.lockb ./
+# Copy the entire frontend application source code
+COPY . .
 
 # Install dependencies
 RUN npm install
-
-# Copy the rest of the application's source code
-COPY . .
 
 # Build the app for production
 RUN npm run build
