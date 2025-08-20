@@ -123,6 +123,15 @@ services:
     networks:
       - campus-net
 
+  frontend:
+    build:
+      context: ./intel-campus-ai-main
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    networks:
+      - campus-net
+
 networks:
   campus-net:
     driver: bridge
