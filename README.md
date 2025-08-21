@@ -23,29 +23,30 @@ Kiến trúc triển khai được thiết kế để hoạt động trên một
 ### Luồng Request
 
 ```mermaid
+%%{init: {"flowchart": {"htmlLabels": false}} }%%
 flowchart TD
-  %% --- Groups ---
+  %% Groups
   subgraph Client
-    U[User<br/>(Browser)]
+    U[User\n(Browser)]
   end
 
-  subgraph "Docker Host / Compose"
-    FE[A. Frontend Container<br/>Nginx<br/><small>serve static at “/”</small>]
-    GW[B. Gateway Container<br/>FastAPI]
+  subgraph Docker Host / Compose
+    FE[A. Frontend Container\nNginx\nserve static at "/"]
+    GW[B. Gateway Container\nFastAPI]
     R[(C. Redis)]
   end
 
   subgraph External
-    LLM[External LLM<br/>(e.g., Google&nbsp;Gemini)]
+    LLM[External LLM\n(Google Gemini)]
   end
 
-  %% --- Edges ---
-  U -- "HTTPS (443)" --> FE
-  FE -- "/api/* (reverse proxy)" --> GW
+  %% Edges
+  U -- HTTPS 443 --> FE
+  FE -- /api/* (reverse proxy) --> GW
   GW <--> R
-  GW -- "LLM API" --> LLM
+  GW -- LLM API --> LLM
 
-  %% --- Styles ---
+  %% Styles
   classDef client fill:#E3F2FD,stroke:#1E88E5,color:#0D47A1
   classDef service fill:#E8F5E9,stroke:#43A047,color:#1B5E20
   classDef cache fill:#FFF8E1,stroke:#F9A825,color:#E65100
