@@ -23,40 +23,39 @@ Kiến trúc triển khai được thiết kế để hoạt động trên một
 ### Luồng Request
 
 ```mermaid
-%%{init: {"flowchart": {"htmlLabels": false}} }%%
 flowchart TD
-  %% Groups
-  subgraph Client
-    U[User\n(Browser)]
-  end
+    %% Define Node Groups
+    subgraph "User"
+        U[Browser]
+    end
 
-  subgraph Docker Host / Compose
-    FE[A. Frontend Container\nNginx\nserve static at "/"]
-    GW[B. Gateway Container\nFastAPI]
-    R[(C. Redis)]
-  end
+    subgraph "Server / Docker Environment"
+        FE["Frontend Container (Nginx)"]
+        GW["Gateway Container (FastAPI)"]
+        DB[(Redis Cache)]
 
-  subgraph External
-    LLM[External LLM\n(Google Gemini)]
-  end
+        GW <--> DB
+    end
 
-  %% Edges
-  U -- HTTPS 443 --> FE
-  FE -- /api/* (reverse proxy) --> GW
-  GW <--> R
-  GW -- LLM API --> LLM
+    subgraph "External Services"
+        LLM["Google Gemini API"]
+    end
 
-  %% Styles
-  classDef client fill:#E3F2FD,stroke:#1E88E5,color:#0D47A1
-  classDef service fill:#E8F5E9,stroke:#43A047,color:#1B5E20
-  classDef cache fill:#FFF8E1,stroke:#F9A825,color:#E65100
-  classDef external fill:#F3E5F5,stroke:#8E24AA,color:#4A148C
+    %% Define Connections
+    U -- "1. HTTPS Request" --> FE
+    FE -- "2. Serves Static React App" --> U
+    FE -- "3. Forwards API call (/api/*)" --> GW
+    GW -- "4. Processes logic, calls LLM" --> LLM
+    LLM -- "5. Returns LLM response" --> GW
+    GW -- "6. Returns final response" --> FE
+    FE -- "7. Forwards response to User" --> U
 
-  class U client
-  class FE, GW service
-  class R cache
-  class LLM external
-
+    %% Styling
+    style U fill:#D6EAF8,stroke:#5DADE2,stroke-width:2px
+    style FE fill:#D5F5E3,stroke:#58D68D,stroke-width:2px
+    style GW fill:#D5F5E3,stroke:#58D68D,stroke-width:2px
+    style DB fill:#FEF9E7,stroke:#F7DC6F,stroke-width:2px
+    style LLM fill:#E8DAEF,stroke:#C39BD3,stroke-width:2px
 ```
 
 ## Hướng dẫn Triển khai (Deployment)
