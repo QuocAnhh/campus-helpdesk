@@ -22,7 +22,8 @@ Kiến trúc triển khai được thiết kế để hoạt động trên một
 
 ### Luồng Request
 
-```flowchart TD
+```mermaid
+flowchart TD
   %% --- Groups ---
   subgraph Client
     U[User<br/>(Browser)]
