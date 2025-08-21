@@ -10,9 +10,7 @@ from openai import OpenAI
 import google.generativeai as genai
 
 # --- OpenAI Configuration ---
-openai_client = OpenAI(
-    base_url=os.getenv("OPENAI_BASE_URL")
-)
+openai_client = None
 
 # --- Gemini Configuration ---
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -44,6 +42,12 @@ def _openai_chat(messages: List[Dict], model: str, tools: Optional[List[Dict]] =
     """
     Handles the chat completion call to OpenAI.
     """
+    global openai_client
+    if openai_client is None:
+        openai_client = OpenAI(
+            base_url=os.getenv("OPENAI_BASE_URL")
+        )
+        
     try:
         response = openai_client.chat.completions.create(
             model=model,

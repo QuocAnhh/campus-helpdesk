@@ -4,6 +4,12 @@ FROM node:20-alpine as build
 # Set the working directory in the container
 WORKDIR /app
 
+# Define build argument
+ARG VITE_API_URL
+
+# Create a .env file in the container
+RUN echo "VITE_API_URL=${VITE_API_URL}" > .env
+
 # Copy the entire frontend application source code
 COPY . .
 

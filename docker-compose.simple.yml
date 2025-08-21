@@ -1,0 +1,38 @@
+services:
+  frontend:
+    image: qank/campus-helpdesk-frontend:latest
+    ports:
+      - "80:80"
+    networks:
+      - campus-net-simple
+    depends_on:
+      - gateway
+
+  gateway:
+    image: qank/campus-helpdesk-backend:latest
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER}
+      LLM_MODEL: ${LLM_MODEL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      REDIS_URL: redis://redis:6379/0
+      NATS_URL: nats://nats:4222
+      QDRANT_URL: http://qdrant:6333
+      GATEWAY_PORT: 8000
+      POLICY_URL: http://policy:8000
+      TICKET_URL: http://ticket:8000
+      ACTION_URL: http://action:8000
+      ESCALATION_URL: http://escalation:8000
+    ports:
+      - "8000:8000"
+    networks:
+      - campus-net-simple
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - campus-net-simple
+
+networks:
+  campus-net-simple:
+    driver: bridge 

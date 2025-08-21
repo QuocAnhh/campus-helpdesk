@@ -128,7 +128,7 @@ services:
       context: ./intel-campus-ai-main
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "1610:80"
     networks:
       - campus-net
 
