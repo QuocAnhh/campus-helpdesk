@@ -22,13 +22,39 @@ Kiến trúc triển khai được thiết kế để hoạt động trên một
 
 ### Luồng Request
 
-```mermaid
-graph TD
-    User -- HTTPS (Port 80) --> A[Frontend Container (Nginx)];
-    A -- / (Serve static files) --> A;
-    A -- /api/* (Proxy Pass) --> B[Gateway Container (FastAPI)];
-    B <--> C[Redis Container];
-    B -- LLM API --> D[External LLM (Google Gemini)];
+```flowchart TD
+  %% --- Groups ---
+  subgraph Client
+    U[User<br/>(Browser)]
+  end
+
+  subgraph "Docker Host / Compose"
+    FE[A. Frontend Container<br/>Nginx<br/><small>serve static at “/”</small>]
+    GW[B. Gateway Container<br/>FastAPI]
+    R[(C. Redis)]
+  end
+
+  subgraph External
+    LLM[External LLM<br/>(e.g., Google&nbsp;Gemini)]
+  end
+
+  %% --- Edges ---
+  U -- "HTTPS (443)" --> FE
+  FE -- "/api/* (reverse proxy)" --> GW
+  GW <--> R
+  GW -- "LLM API" --> LLM
+
+  %% --- Styles ---
+  classDef client fill:#E3F2FD,stroke:#1E88E5,color:#0D47A1
+  classDef service fill:#E8F5E9,stroke:#43A047,color:#1B5E20
+  classDef cache fill:#FFF8E1,stroke:#F9A825,color:#E65100
+  classDef external fill:#F3E5F5,stroke:#8E24AA,color:#4A148C
+
+  class U client
+  class FE, GW service
+  class R cache
+  class LLM external
+
 ```
 
 ## Hướng dẫn Triển khai (Deployment)
