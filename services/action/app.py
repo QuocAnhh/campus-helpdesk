@@ -1,8 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Dict
+import sys
+sys.path.append('/app')
 
-from .toolspec import TOOL_SCHEMAS
+from toolspec import TOOL_SCHEMAS
 
 app = FastAPI(title="Action Service")
 

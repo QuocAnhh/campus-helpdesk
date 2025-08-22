@@ -6,7 +6,11 @@ import os
 import uuid
 import json
 from redis import Redis
+import sys
+sys.path.append('/app')
 from agents import AgentManager
+from routers import auth as auth_router
+from routers import users as user_router
 
 # --- Setup ---
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -22,6 +26,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Routers ---
+app.include_router(auth_router.router)
+app.include_router(user_router.router)
+
 
 # --- Initialize Agent Manager ---
 agent_manager = AgentManager()

@@ -25,6 +25,13 @@ services:
       TICKET_URL: http://ticket:8000
       ACTION_URL: http://action:8000
       ESCALATION_URL: http://escalation:8000
+      # Database connection for authentication
+      DB_CONNECTION: ${DB_CONNECTION}
+      DB_HOST: host.docker.internal
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
     ports:
       - "${GATEWAY_PORT:-8000}:8000"
     depends_on:
@@ -34,6 +41,8 @@ services:
       - escalation
     networks:
       - campus-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   ingest:
     build:
@@ -129,6 +138,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "1610:80"
+    depends_on:
+      - gateway
     networks:
       - campus-net
 

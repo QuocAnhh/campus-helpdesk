@@ -11,6 +11,46 @@ const api = axios.create({
   },
 });
 
+// Auth token interceptor
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, error => {
+  return Promise.reject(error);
+});
+
+export const authAPI = {
+  login: async (username: string, password: string) => {
+    const params = new URLSearchParams();
+    params.append('username', username);
+    params.append('password', password);
+
+    const response = await api.post('/auth/token', params, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    });
+    return response.data;
+  },
+
+  register: async (userData: {
+    username: string;
+    email: string;
+    full_name: string;
+    password: string;
+    role?: 'student' | 'admin';
+  }) => {
+    const response = await api.post('/auth/register', {
+      ...userData,
+      role: userData.role || 'student', // Default to student
+    });
+    return response.data;
+  },
+};
+
 export const chatAPI = {
   sendMessage: async (request: ChatRequest): Promise<ChatResponse> => {
     const response = await api.post<ChatResponse>('/ask', request);
