@@ -2,7 +2,11 @@
 This module contains the hybrid retriever for retrieving relevant policy documents.
 """
 
+import logging
+
 # TODO: Implement hybrid retriever with Qdrant and BM25 fallback.
+
+logger = logging.getLogger(__name__)
 
 def retrieve_documents(query: str):
     """
@@ -10,5 +14,5 @@ def retrieve_documents(query: str):
     """
 
     # Placeholder implementation
-    print(f"Retrieving documents for query: {query}")
-    return [] 
+    logger.debug("Retrieving documents for query='%s'", query)
+    return []

@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 import sys
+import logging
 sys.path.append('/app')
 
 load_dotenv()
@@ -17,6 +18,8 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY", "a_very_secret_key_that_should_be_changed")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 1 day
+
+logger = logging.getLogger("gateway.security")
 
 # OAuth2 scheme for token authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
@@ -45,7 +48,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
     """Decodes JWT, validates credentials, and returns the user."""
-    # Import here to avoid circular imports
     import crud, schemas
     from database import get_db, SessionLocal
     
@@ -54,13 +56,23 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    payload = None
+    username = None
     try:
+        # Log minimal token info (length only)
+        if token:
+            logger.debug("Auth attempt token_len=%d", len(token))
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        username = payload.get("sub")
+        role = payload.get("role")
+        exp = payload.get("exp")
         if username is None:
+            logger.warning("JWT decode missing sub. payload_keys=%s", list(payload.keys()))
             raise credentials_exception
+        logger.debug("JWT decoded sub=%s role=%s exp=%s", username, role, exp)
         token_data = schemas.TokenData(username=username)
-    except JWTError:
+    except JWTError as e:
+        logger.warning("JWT decode failed: %s", e)
         raise credentials_exception
     
     # Create a new database session
@@ -68,7 +80,9 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         user = crud.get_user_by_username(db, username=token_data.username)
         if user is None:
+            logger.warning("User not found in DB for sub=%s", username)
             raise credentials_exception
+        logger.debug("Authenticated user id=%s username=%s role=%s", user.id, user.username, user.role)
         return user
     finally:
-        db.close() 
+        db.close()

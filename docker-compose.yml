@@ -28,15 +28,15 @@ services:
       # Database connection for authentication
       DB_CONNECTION: ${DB_CONNECTION}
       DB_HOST: host.docker.internal
-      DB_PORT: ${DB_PORT}
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PORT: 3306
+      DB_DATABASE: helpdesk
+      DB_USERNAME: root
+      DB_PASSWORD: ""
+      SECRET_KEY: ${SECRET_KEY}
     ports:
       - "${GATEWAY_PORT:-8000}:8000"
     depends_on:
       - policy
-      - ticket
       - action
       - escalation
     networks:
@@ -78,9 +78,14 @@ services:
       dockerfile: services/bases/Dockerfile
       args:
         SERVICE_DIR: services/action
-    environment: *common-env
+    environment:
+      <<: *common-env
+      # Database connection
+      DATABASE_URL: mysql+pymysql://root:@host.docker.internal:3306/helpdesk
     networks:
       - campus-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   ticket:
     build:
@@ -89,16 +94,20 @@ services:
       args:
         SERVICE_DIR: services/ticket
     environment:
-      - DB_CONNECTION=${DB_CONNECTION}
-      - DB_HOST=host.docker.internal # Use this hostname to connect to the host machine
-      - DB_PORT=${DB_PORT}
-      - DB_DATABASE=${DB_DATABASE}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      DB_CONNECTION: ${DB_CONNECTION}
+      DB_HOST: host.docker.internal
+      DB_PORT: 3306
+      DB_DATABASE: helpdesk
+      DB_USERNAME: root
+      DB_PASSWORD: ""
+      SECRET_KEY: ${SECRET_KEY}
+      GATEWAY_URL: http://gateway:8000
+    depends_on:
+      - policy
     networks:
       - campus-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   escalation:
     build:

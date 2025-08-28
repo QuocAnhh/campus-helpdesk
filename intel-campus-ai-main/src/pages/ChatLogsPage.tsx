@@ -9,40 +9,6 @@ import { Calendar, Clock, User, Bot, Eye, CheckCircle, RotateCcw } from 'lucide-
 import { chatAPI } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 
-// Mock data for demonstration
-const mockChatLogs = [
-  {
-    id: '1',
-    studentId: '12345',
-    sessionId: 'abc-123',
-    messages: 15,
-    agent: 'FAQ Agent',
-    startTime: new Date('2024-01-15 10:30:00'),
-    endTime: new Date('2024-01-15 10:45:00'),
-    status: 'completed'
-  },
-  {
-    id: '2',
-    studentId: '67890',
-    sessionId: 'def-456',
-    messages: 8,
-    agent: 'Technical Agent',
-    startTime: new Date('2024-01-15 09:15:00'),
-    endTime: new Date('2024-01-15 09:25:00'),
-    status: 'completed'
-  },
-  {
-    id: '3',
-    studentId: '11111',
-    sessionId: 'ghi-789',
-    messages: 3,
-    agent: 'Greeting Agent',
-    startTime: new Date('2024-01-15 08:00:00'),
-    endTime: null,
-    status: 'active'
-  },
-];
-
 const ChatLogsPage = () => {
   const [chatLogs, setChatLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -208,12 +174,11 @@ const ChatLogsPage = () => {
           </Card>
         </div>
 
-        {/* Chat Logs Table */}
         <Card>
           <CardHeader>
             <CardTitle>Lịch sử Chat</CardTitle>
             <CardDescription>
-              Danh sách các phiên chat gần đây (sẽ được kết nối với database thực tế)
+              Danh sách các phiên chat gần đây
             </CardDescription>
           </CardHeader>
           <CardContent>

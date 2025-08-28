@@ -3,8 +3,10 @@ from pydantic import BaseModel
 import os
 import hmac
 import hashlib
+import logging
 
 app = FastAPI(title="Zalo Ingest")
+logger = logging.getLogger(__name__)
 
 # TODO: Define a proper Interaction model
 class Interaction(BaseModel):
@@ -26,5 +28,5 @@ async def zalo_webhook(interaction: Interaction, x_zalo_signature: str = Header(
             raise HTTPException(status_code=401, detail="Invalid signature")
 
     # TODO: Normalize to internal Interaction model and publish to NATS
-    print(f"Received interaction from Zalo: {interaction}")
-    return {"status": "ok"} 
+    logger.info("Received interaction from Zalo user_id=%s", interaction.user_id)
+    return {"status": "ok"}

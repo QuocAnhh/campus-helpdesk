@@ -177,12 +177,10 @@
     @apply bg-primary/10 text-primary font-medium;
   }
   
-  /* Loading animation */
   .typing-indicator {
     @apply animate-pulse;
   }
   
-  /* Custom scrollbar */
   .custom-scrollbar::-webkit-scrollbar {
     @apply w-2;
   }

@@ -25,7 +25,7 @@ export const useChat = () => {
       const request: ChatRequest = {
         channel: 'web',
         text,
-        student_id: '12345', // TODO: Get from user context
+        student_id: '12345',
         session_id: sessionId,
       };
 

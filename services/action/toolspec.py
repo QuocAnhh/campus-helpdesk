@@ -10,6 +10,15 @@ TOOL_SCHEMAS = {
         },
         "required": ["student_id"],
     },
+    "renew_library_card": {
+        "type": "object",
+        "properties": {
+            "student_id": {"type": "string"},
+            "card_number": {"type": "string"},
+            "duration": {"type": "string"},
+        },
+        "required": ["student_id", "card_number", "duration"],
+    },
     "create_glpi_ticket": {
         "type": "object",
         "properties": {
@@ -23,9 +32,11 @@ TOOL_SCHEMAS = {
         "type": "object",
         "properties": {
             "room_number": {"type": "string"},
-            "issue_description": {"type": "string"},
+            "issue_type": {"type": "string"},
+            "description": {"type": "string"},
+            "urgency": {"type": "string"},
         },
-        "required": ["room_number", "issue_description"],
+        "required": ["room_number", "issue_type", "description"],
     },
     "book_room": {
         "type": "object",

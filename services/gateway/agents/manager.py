@@ -3,6 +3,9 @@ from .router import RouterAgent
 from .greeting import GreetingAgent
 from .technical import TechnicalAgent
 from .faq import FAQAgent
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AgentManager:
@@ -43,6 +46,7 @@ class AgentManager:
             
             # 2. Kiểm tra agent có tồn tại không
             if target_agent_name not in self.agents:
+                logger.warning("Target agent '%s' not found. Falling back to FAQ.", target_agent_name)
                 target_agent_name = "faq"  # Fallback to FAQ agent
             
             # 3. Gọi agent được chọn để xử lý
@@ -59,7 +63,7 @@ class AgentManager:
             return response
             
         except Exception as e:
-            print(f"Error in AgentManager.process_message: {e}")
+            logger.exception("Error in AgentManager.process_message")
             # Fallback response
             return {
                 "reply": "Xin lỗi, tôi gặp sự cố khi xử lý yêu cầu của bạn. Bạn có thể thử lại không?",
@@ -82,4 +86,4 @@ class AgentManager:
     
     def get_available_agents(self) -> List[str]:
         """Lấy danh sách các agent có sẵn"""
-        return list(self.agents.keys()) 
+        return list(self.agents.keys())

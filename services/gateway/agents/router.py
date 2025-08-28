@@ -1,7 +1,9 @@
 from typing import Dict, List
 import json
 from .base import BaseAgent
+import logging
 
+logger = logging.getLogger("gateway.router_agent")
 
 class RouterAgent(BaseAgent):
     """Agent chịu trách nhiệm phân tích và định tuyến yêu cầu đến agent phù hợp"""
@@ -37,10 +39,10 @@ class RouterAgent(BaseAgent):
         try:
             return json.loads(response_content)
         except json.JSONDecodeError as e:
-            print(f"Router JSON decode error: {e}")
+            logger.warning("Router JSON decode error: %s | raw=%s", e, response_content[:200])
             # Fallback nếu LLM không trả về JSON hợp lệ
             return {
                 "target_agent": "faq",
                 "reason": "Không thể phân tích yêu cầu, chuyển sang FAQ agent",
                 "confidence": 0.3
-            } 
+            }

@@ -12,9 +12,9 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
       <Sidebar />
       <div className="flex-1 flex flex-col">
         <UserHeader />
-        <main className="flex-1 overflow-hidden">
-          {children}
-        </main>
+      <main className="flex-1 overflow-hidden">
+        {children}
+      </main>
       </div>
     </div>
   );

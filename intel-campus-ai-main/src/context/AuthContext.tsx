@@ -38,12 +38,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       const token = localStorage.getItem('accessToken');
+      console.log('AuthContext init - token exists:', !!token);
       if (token) {
+        console.log('AuthContext init - token length:', token.length);
         try {
           // No need to call /users/me, we can store user object from login
           const userString = localStorage.getItem('user');
           if(userString) {
             const user = JSON.parse(userString);
+            console.log('AuthContext init - user loaded:', user.username, user.role);
             setAuthState({
               isAuthenticated: true,
               user,
@@ -52,6 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             });
           } else {
              // Fallback if user is not in local storage for some reason
+             console.warn('AuthContext init - no user in localStorage, logging out');
              logout();
           }
         } catch (error) {
@@ -59,6 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           logout(); // If token is invalid, logout
         }
       } else {
+        console.log('AuthContext init - no token found');
         setAuthState(prevState => ({ ...prevState, isLoading: false }));
       }
     };
@@ -66,8 +71,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = (token: string, user: User) => {
+    console.log('AuthContext login - setting token, length:', token.length);
     localStorage.setItem('accessToken', token);
     localStorage.setItem('user', JSON.stringify(user));
+    console.log('AuthContext login - token saved to localStorage');
     setAuthState({
       isAuthenticated: true,
       user,

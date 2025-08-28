@@ -21,7 +21,10 @@ export function LoginPage() {
     setIsLoading(true);
     
     try {
+      console.log('Login attempt for username:', username);
       const response = await authAPI.login(username, password);
+      console.log('Login successful, token received, length:', response.access_token.length);
+      console.log('User data:', response.user);
       
       // Use the AuthContext login method
       login(response.access_token, response.user);
@@ -34,8 +37,8 @@ export function LoginPage() {
       }
       
     } catch (err) {
+      console.error('Login error:', err);
       setError('Failed to login. Please check your username and password.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }

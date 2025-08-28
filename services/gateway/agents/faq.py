@@ -1,6 +1,9 @@
 from typing import Dict, List
 import httpx
+import logging
 from .base import BaseAgent
+
+logger = logging.getLogger(__name__)
 
 
 class FAQAgent(BaseAgent):
@@ -33,7 +36,7 @@ class FAQAgent(BaseAgent):
             # Tạm thời return None, sẽ implement sau
             return None
         except Exception as e:
-            print(f"Error searching knowledge base: {e}")
+            logger.exception("Error searching knowledge base for query='%s'", query)
             return None
     
     def _build_messages_with_context(self, user_message: str, chat_history: List[Dict], context_info: Dict) -> List[Dict]:
@@ -54,4 +57,4 @@ class FAQAgent(BaseAgent):
         # Thêm tin nhắn hiện tại
         messages.append({"role": "user", "content": user_message})
         
-        return messages 
+        return messages

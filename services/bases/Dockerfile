@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r /app/requirements-base.txt
 
 # Install service-specific requirements if they exist
 COPY ${SERVICE_DIR}/requirements.txt /app/requirements-service.txt
-RUN pip install --no-cache-dir -r /app/requirements-service.txt 2>/dev/null || echo "No service-specific requirements found"
+RUN pip install --no-cache-dir -r /app/requirements-service.txt || echo "Failed to install service requirements"
 
 # Copy application code
 COPY common /app/common

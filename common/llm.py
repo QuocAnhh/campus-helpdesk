@@ -4,10 +4,13 @@ Provider-agnostic interface for Large Language Models.
 import os
 import json
 from typing import List, Dict, Optional
+import logging
 
 # --- Provider-specific imports ---
 from openai import OpenAI
 import google.generativeai as genai
+
+logger = logging.getLogger(__name__)
 
 # --- OpenAI Configuration ---
 openai_client = None
@@ -61,7 +64,7 @@ def _openai_chat(messages: List[Dict], model: str, tools: Optional[List[Dict]] =
             return {"tool_calls": [tc.model_dump() for tc in message.tool_calls]}
         return {"content": message.content}
     except Exception as e:
-        print(f"Error calling OpenAI API: {e}")
+        logger.exception("Error calling OpenAI API")
         return stub_chat(messages, tools)
 
 def _gemini_chat(messages: List[Dict], model: str, tools: Optional[List[Dict]] = None) -> Dict:
@@ -69,7 +72,7 @@ def _gemini_chat(messages: List[Dict], model: str, tools: Optional[List[Dict]] =
     Handles the chat completion call to Google Gemini.
     """
     if not GOOGLE_API_KEY:
-        print("Error: GOOGLE_API_KEY not found. Falling back to stub.")
+        logger.error("GOOGLE_API_KEY not found. Falling back to stub.")
         return stub_chat(messages, tools)
     
     try:
@@ -115,14 +118,14 @@ def _gemini_chat(messages: List[Dict], model: str, tools: Optional[List[Dict]] =
         return {"content": "Sorry, I could not process the response from Gemini."}
 
     except Exception as e:
-        print(f"Error calling Gemini API: {e}")
+        logger.exception("Error calling Gemini API")
         return stub_chat(messages, tools)
 
 def stub_chat(messages: List[Dict], tools: Optional[List[Dict]] = None) -> Dict:
     """
     A simple rule-based stub for the chat function that works with multi-agent system.
     """
-    print("Using stub LLM chat.")
+    logger.debug("Using stub LLM chat.")
     last_message = messages[-1].get("content", "").lower()
     
     # Detect if this is a router agent call
@@ -172,4 +175,4 @@ def stub_chat(messages: List[Dict], tools: Optional[List[Dict]] = None) -> Dict:
         return {"content": "Mình sẽ tìm kiếm thông tin để trả lời câu hỏi của bạn. Bạn có thể đợi một chút nhé."}
     else:
         # Default response
-        return {"content": "Xin lỗi, tôi cần thêm thông tin để có thể hỗ trợ bạn tốt hơn."} 
+        return {"content": "Xin lỗi, tôi cần thêm thông tin để có thể hỗ trợ bạn tốt hơn."}
