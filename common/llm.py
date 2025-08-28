@@ -6,16 +6,13 @@ import json
 from typing import List, Dict, Optional
 import logging
 
-# --- Provider-specific imports ---
 from openai import OpenAI
 import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 
-# --- OpenAI Configuration ---
 openai_client = None
 
-# --- Gemini Configuration ---
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
@@ -166,7 +163,6 @@ def stub_chat(messages: List[Dict], tools: Optional[List[Dict]] = None) -> Dict:
                 }
             })}
     
-    # Agent responses
     elif "greeting agent" in system_message.lower():
         return {"content": "Chào bạn! Mình là trợ lý Campus Helpdesk. Hôm nay mình có thể giúp gì cho bạn?"}
     elif "technical" in system_message.lower():
@@ -174,5 +170,4 @@ def stub_chat(messages: List[Dict], tools: Optional[List[Dict]] = None) -> Dict:
     elif "faq" in system_message.lower():
         return {"content": "Mình sẽ tìm kiếm thông tin để trả lời câu hỏi của bạn. Bạn có thể đợi một chút nhé."}
     else:
-        # Default response
         return {"content": "Xin lỗi, tôi cần thêm thông tin để có thể hỗ trợ bạn tốt hơn."}

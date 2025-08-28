@@ -1,7 +1,19 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List
 import os
-from common.llm import chat
+import sys
+
+# Add the project root to Python path
+sys.path.append('/app')
+sys.path.append('/app/common')
+
+try:
+    from common.llm import chat
+except ImportError:
+    # Fallback if common module not found
+    def chat(messages):
+        """Fallback chat function"""
+        return {"content": "I'm sorry, I cannot process this request right now."}
 
 
 class BaseAgent(ABC):

@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Response, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import os
 import uuid
 import json
@@ -21,6 +21,7 @@ from routers import tickets as ticket_router
 # --- Setup ---
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 TICKET_URL = os.getenv("TICKET_URL", "http://ticket:8000")
+ACTION_URL = os.getenv("ACTION_URL", "http://action:8000")
 DEFAULT_SECRET = "a_very_secret_key_that_should_be_changed"
 SECRET_KEY_ENV = os.getenv("SECRET_KEY", DEFAULT_SECRET)
 
@@ -538,6 +539,55 @@ async def call_tool(
             status_code=500,
             detail="Internal server error"
         )
+
+@app.get("/tools")
+async def get_available_tools():
+    """Get list of available tools from Action service"""
+    try:
+        client: httpx.AsyncClient = app.state.http_client
+        response = await client.get(f"{ACTION_URL}/tools", timeout=10.0)
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"tools": [], "error": "Could not fetch tools from action service"}
+    
+    except Exception as e:
+        logger.error(f"Error fetching tools: {e}")
+        return {"tools": [], "error": str(e)}
+
+# --- Workflow Management Routes
+
+@app.get("/workflows/{workflow_id}")
+async def get_workflow_status(workflow_id: str):
+    """Get status of a workflow"""
+    try:
+        workflow_status = agent_manager.get_workflow_status(workflow_id)
+        if workflow_status:
+            return workflow_status
+        else:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+    except Exception as e:
+        logger.error(f"Error getting workflow status: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/evaluate")
+async def evaluate_response(
+    response_data: Dict[str, Any],
+    original_request: str,
+    context: Optional[Dict[str, Any]] = None
+):
+    """Evaluate response quality using Critic Agent"""
+    try:
+        evaluation = await agent_manager.evaluate_response_quality(
+            response=response_data,
+            original_request=original_request,
+            context=context or {}
+        )
+        return evaluation
+    except Exception as e:
+        logger.error(f"Error in response evaluation: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # --- Admin Action Requests Management Routes
 
