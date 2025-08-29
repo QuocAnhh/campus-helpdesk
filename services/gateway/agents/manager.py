@@ -4,12 +4,127 @@ from .greeting import GreetingAgent
 from .technical import TechnicalAgent
 from .faq import FAQAgent
 from .lead_agent import LeadAgent
+from .smart_lead_agent import SmartLeadAgent
 from .action_executor import ActionExecutorAgent
 from .critic import CriticAgent
 import logging
 import asyncio
 
 logger = logging.getLogger(__name__)
+
+
+class SmartAgentManager:
+    """
+    Smart Agent Manager sử dụng SmartLeadAgent làm orchestrator chính
+    Thông minh hơn, tự nhiên hơn, ít cứng nhắc hơn
+    """
+    
+    def __init__(self):
+        # Smart Lead Agent - trợ lý chính thông minh
+        self.smart_lead = SmartLeadAgent()
+        
+        # Các chuyên gia cụ thể
+        self.specialists = {
+            "technical": TechnicalAgent(),
+            "faq": FAQAgent(), 
+            "action_executor": ActionExecutorAgent(),
+            "greeting": GreetingAgent(),
+            "critic": CriticAgent()
+        }
+        
+        # Session memory
+        self.session_memory: Dict[str, Dict] = {}
+    
+    async def process_message(self, user_message: str, chat_history: List[Dict], 
+                            session_id: str = None, student_id: str = None) -> Dict:
+        """
+        Xử lý tin nhắn thông minh với SmartLeadAgent
+        """
+        try:
+            # Chuẩn bị context
+            context = {
+                "session_id": session_id,
+                "student_id": student_id,
+                "session_memory": self.session_memory.get(session_id, {}),
+                "chat_history": chat_history
+            }
+            
+            # Gọi Smart Lead Agent
+            response = self.smart_lead.process(user_message, chat_history, context)
+            
+            # Xử lý theo quyết định của Smart Lead
+            if response.get("requires_specialist"):
+                # Cần chuyên gia
+                return await self._delegate_to_specialist(response, user_message, chat_history, context)
+            
+            else:
+                # Smart Lead đã tự xử lý
+                return response
+                
+        except Exception as e:
+            logger.exception("Error in SmartAgentManager.process_message")
+            return {
+                "reply": "Xin lỗi, mình đang gặp một chút vấn đề kỹ thuật. Bạn có thể thử lại không?",
+                "agent": "smart_agent_manager",
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def _delegate_to_specialist(self, smart_lead_response: Dict, user_message: str, 
+                                   chat_history: List[Dict], context: Dict) -> Dict:
+        """
+        Ủy thác cho chuyên gia theo quyết định của Smart Lead
+        """
+        target_specialist = smart_lead_response.get("target_agent")
+        
+        if target_specialist not in self.specialists:
+            logger.warning(f"Specialist '{target_specialist}' not found. Fallback to Smart Lead response.")
+            return smart_lead_response
+        
+        try:
+            # Gọi chuyên gia
+            specialist = self.specialists[target_specialist]
+            
+            # Enhanced context với thông tin từ Smart Lead
+            enhanced_context = context.copy()
+            enhanced_context["smart_lead_analysis"] = {
+                "delegation_reason": smart_lead_response.get("delegation_reason"),
+                "user_intent": smart_lead_response.get("user_intent", ""),
+                "smart_lead_explanation": smart_lead_response.get("reply", "")
+            }
+            
+            # Process với chuyên gia
+            if hasattr(specialist, 'process') and asyncio.iscoroutinefunction(specialist.process):
+                specialist_response = await specialist.process(user_message, chat_history, enhanced_context)
+            else:
+                specialist_response = specialist.process(user_message, chat_history, enhanced_context)
+            
+            # Thêm thông tin về delegation
+            specialist_response["delegated_by"] = "smart_lead"
+            specialist_response["smart_lead_explanation"] = smart_lead_response.get("reply", "")
+            
+            return specialist_response
+            
+        except Exception as e:
+            logger.exception(f"Error delegating to specialist {target_specialist}")
+            # Fallback về Smart Lead response
+            smart_lead_response["specialist_error"] = str(e)
+            smart_lead_response["reply"] += " (Lưu ý: Có một chút vấn đề kỹ thuật với chuyên gia, nhưng mình vẫn có thể hỗ trợ bạn cơ bản.)"
+            return smart_lead_response
+    
+    def get_available_agents(self) -> List[str]:
+        """Lấy danh sách agents có sẵn"""
+        return ["smart_lead"] + list(self.specialists.keys())
+    
+    def get_session_memory(self, session_id: str) -> Dict:
+        """Lấy session memory"""
+        return self.session_memory.get(session_id, {})
+    
+    def update_session_memory(self, session_id: str, key: str, value: any) -> None:
+        """Cập nhật session memory"""
+        if session_id not in self.session_memory:
+            self.session_memory[session_id] = {}
+        self.session_memory[session_id][key] = value
 
 
 class EnhancedAgentManager:
@@ -143,6 +258,10 @@ class EnhancedAgentManager:
         """Lấy session memory"""
         return self.session_memory.get(session_id, {})
     
+    def get_available_agents(self) -> List[str]:
+        """Lấy danh sách agents có sẵn"""
+        return ["smart_lead"] + list(self.specialists.keys())
+    
     async def evaluate_response_quality(self, response: Dict, original_request: str, 
                                       context: Dict) -> Dict:
         """Đánh giá chất lượng response bằng Critic Agent"""
@@ -168,10 +287,6 @@ class EnhancedAgentManager:
             "fallback": True
         }
     
-    def get_available_agents(self) -> List[str]:
-        """Lấy danh sách agents có sẵn"""
-        return ["lead_agent"] + list(self.agents.keys())
-    
     def get_workflow_status(self, workflow_id: str) -> Optional[Dict]:
         """Lấy trạng thái workflow từ Lead Agent"""
         return self.lead_agent.get_workflow_status(workflow_id)
@@ -192,12 +307,18 @@ class EnhancedAgentManager:
             del self.session_memory[session_id]
         
         # Dọn dẹp workflows trong Lead Agent
-        workflows_cleaned = self.lead_agent.cleanup_completed_workflows(max_age_hours)
+        workflows_cleaned = self.lead_agent.cleanup_completed
         
         return len(to_remove) + workflows_cleaned
 
 
-# Backward compatibility
-class AgentManager(EnhancedAgentManager):
-    """Alias for backward compatibility"""
+# Default Manager - sử dụng Smart approach
+class AgentManager(SmartAgentManager):
+    """
+    AgentManager mặc định sử dụng SmartLeadAgent
+    Thông minh, linh hoạt và tự nhiên hơn
+    """
     pass
+
+
+# Keep the original EnhancedAgentManager as is for backward compatibility

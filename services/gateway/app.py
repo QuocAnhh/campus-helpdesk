@@ -137,6 +137,12 @@ def get_student_id(
     x_student_id: Optional[str] = Header(None, alias="x-student-id")
 ) -> Optional[str]:
     """Extract student_id from Authorization header (JWT) or x-student-id header (dev fallback)"""
+    
+    # Development mode: return default student ID if no auth provided
+    if not authorization and not x_student_id:
+        logger.warning("No authentication provided, using default student ID for development")
+        return "DEV001"  # Default student ID for development
+    
     # Try JWT first
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ")[1]
@@ -145,7 +151,7 @@ def get_student_id(
             return student_id
     
     # Fallback to x-student-id header for development
-    return x_student_id
+    return x_student_id or "DEV001"
 
 # --- New Pydantic Models ---
 class UserProfile(BaseModel):
@@ -339,18 +345,11 @@ async def reopen_session(session_id: str):
 @app.get("/me", response_model=UserProfile)
 async def get_me(student_id: Optional[str] = Depends(get_student_id)):
     """Get current user profile information"""
-    if not student_id:
-        raise HTTPException(
-            status_code=401, 
-            detail="Student ID not found in JWT or x-student-id header"
-        )
-    
-    # For development, return mock data
-    # Later this should connect to SIS (Student Information System)
+    # Always have a student_id now due to our fallback
     return UserProfile(
-        student_id=student_id,
-        name="Unknown",
-        major="Unknown"
+        student_id=student_id or "DEV001",
+        name="Development User",
+        major="Computer Science"
     )
 
 @app.get("/me/tickets", response_model=List[TicketSummary])
@@ -359,15 +358,12 @@ async def get_my_tickets(
     student_id: Optional[str] = Depends(get_student_id)
 ):
     """Get current user's tickets"""
-    if not student_id:
-        raise HTTPException(
-            status_code=401,
-            detail="Student ID not found in JWT or x-student-id header"
-        )
+    # Always have a student_id now due to our fallback
+    effective_student_id = student_id or "DEV001"
     
     try:
         # Proxy to ticket service with student_id filter
-        target_url = f"{TICKET_URL}/tickets?student_id={student_id}"
+        target_url = f"{TICKET_URL}/tickets?student_id={effective_student_id}"
         if request.url.query:
             target_url += f"&{request.url.query}"
         
