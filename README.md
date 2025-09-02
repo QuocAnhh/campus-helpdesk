@@ -162,6 +162,16 @@ flowchart TD
 - **Context Preservation**: Duy trì ngữ cảnh xuyên suốt cuộc trò chuyện
 - **Multi-turn Conversations**: Hỗ trợ hội thoại nhiều lượt phức tạp
 
+### 🎤 Voice Chat Integration
+- **Speech-to-Text**: Nhận diện giọng nói tiếng Việt bằng OpenAI Whisper  
+- **Text-to-Speech**: Chuyển đổi phản hồi thành giọng nói với ElevenLabs
+- **Auto-TTS**: Bot replies tự động phát âm thanh sau khi xử lý `/ask`
+- **Voice Toggle**: User có thể bật/tắt auto-speak trong giao diện
+- **Audio Caching**: Cache audio files để tiết kiệm credit và tăng tốc độ
+- **Browser Policy Handling**: Tự động xử lý autoplay restrictions
+- **Multi-voice Support**: Configurable voice selection và quality settings
+- **Seamless Integration**: Tích hợp mượt mà với text chat hiện có
+
 ## API Endpoints Mới
 
 ### User Management
@@ -170,6 +180,8 @@ flowchart TD
 
 ### Chat & Session Management  
 - `POST /ask` - Gửi tin nhắn (với Lead-Agent orchestration)
+- `POST /tts` - Convert text to speech (ElevenLabs integration)
+- `POST /voice-chat` - Hội thoại bằng giọng nói (STT + TTS)
 - `GET /sessions/{session_id}/history` - Lịch sử chat theo session
 - `GET /agents` - Danh sách agents và trạng thái
 
@@ -383,6 +395,11 @@ Tạo file `.env` (`nano .env`) với configuration đầy đủ:
 LLM_PROVIDER=gemini
 LLM_MODEL=gemini-1.5-flash
 GOOGLE_API_KEY=your_google_api_key_here
+
+# ===== VOICE SERVICES =====
+OPENAI_API_KEY=your_openai_api_key_here
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM
 
 # ===== LEAD-AGENT CONFIGURATION =====
 LEAD_AGENT_MAX_WORKFLOWS=100

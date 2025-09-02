@@ -10,6 +10,8 @@ import TicketsPage from "./pages/TicketsPage";
 import ActionRequestsManager from "./pages/ActionRequestsManager";
 import { SelfService } from "./pages/SelfService";
 import SmartFormDemo from "./pages/SmartFormDemo";
+import VoiceChatPage from "./pages/VoiceChatPage";
+import CallPage from "./pages/CallPage";
 import NotFound from "./pages/NotFound";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
@@ -36,6 +38,8 @@ const App = () => (
             <Route path="/" element={<ChatPage />} />
             <Route path="/tickets" element={<TicketsPage />} />
             <Route path="/self-service" element={<SelfService />} />
+            <Route path="/voice-chat" element={<VoiceChatPage />} />
+            <Route path="/call" element={<CallPage />} />
             <Route path="/demo/smart-form" element={<SmartFormDemo />} />
           </Route>
 

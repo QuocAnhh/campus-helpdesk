@@ -25,6 +25,10 @@ services:
       TICKET_URL: http://ticket:8000
       ACTION_URL: http://action:8000
       ESCALATION_URL: http://escalation:8000
+      # Voice Services
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY}
+      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID}
+      ELEVENLABS_MODEL_ID: ${ELEVENLABS_MODEL_ID}
       # Database connection for authentication
       DB_CONNECTION: ${DB_CONNECTION}
       DB_HOST: host.docker.internal
@@ -116,6 +120,21 @@ services:
       args:
         SERVICE_DIR: services/escalation
     environment: *common-env
+    networks:
+      - campus-net
+
+  voice:
+    build:
+      context: ./services/voice
+      dockerfile: Dockerfile
+    environment:
+      <<: *common-env
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY}
+      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID}
+      ELEVENLABS_MODEL_ID: ${ELEVENLABS_MODEL_ID}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+    ports:
+      - "8001:8001"
     networks:
       - campus-net
 

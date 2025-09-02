@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException, Response, Request, Depends, Header
+from fastapi import FastAPI, HTTPException, Response, Request, Depends, Header, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Any
 import os
@@ -11,12 +12,14 @@ import httpx
 import sys
 import logging
 import time
+from pathlib import Path
 from jose import JWTError, jwt
 sys.path.append('/app')
 from agents import AgentManager
 from routers import auth as auth_router
 from routers import users as user_router
 from routers import tickets as ticket_router
+from voice_services import VoiceManager
 
 # --- Setup ---
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -24,6 +27,12 @@ TICKET_URL = os.getenv("TICKET_URL", "http://ticket:8000")
 ACTION_URL = os.getenv("ACTION_URL", "http://action:8000")
 DEFAULT_SECRET = "a_very_secret_key_that_should_be_changed"
 SECRET_KEY_ENV = os.getenv("SECRET_KEY", DEFAULT_SECRET)
+
+# Voice Services Setup
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
+STATIC_AUDIO_DIR = os.getenv("STATIC_AUDIO_DIR", "/tmp/static/audio")
 
 logger = logging.getLogger("gateway")
 if not logger.handlers:
@@ -35,6 +44,18 @@ logging.getLogger("gateway.security").setLevel(logging.DEBUG)
 r = Redis.from_url(REDIS_URL, decode_responses=True)
 
 app = FastAPI(title="Campus Helpdesk Gateway")
+
+# Mount static files for serving audio
+os.makedirs(STATIC_AUDIO_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory="/tmp/static"), name="static")
+
+# Initialize VoiceManager
+voice_manager = None
+if OPENAI_API_KEY and ELEVENLABS_API_KEY:
+    voice_manager = VoiceManager(OPENAI_API_KEY, ELEVENLABS_API_KEY, STATIC_AUDIO_DIR)
+    logger.info("Voice services initialized successfully")
+else:
+    logger.warning("Voice services not initialized - missing API keys")
 
 # --- Lifespan: shared HTTP client ---
 @app.on_event("startup")
@@ -181,6 +202,14 @@ class AskBody(BaseModel):
     student_id: str | None = None
     session_id: str | None = None
 
+class TtsBody(BaseModel):
+    text: str
+    voice_id: str | None = None
+    model_id: str | None = None
+    stability: float | None = 0.7
+    similarity_boost: float | None = 0.7
+    format: str | None = "mp3"
+
 # --- Main Endpoint ---
 @app.post("/ask")
 async def ask(body: AskBody):
@@ -229,6 +258,93 @@ async def ask(body: AskBody):
                 }
             }
         }
+
+@app.post("/tts")
+async def text_to_speech(body: TtsBody):
+    """
+    Convert text to speech using ElevenLabs API
+    Returns JSON with text and audio_url for client-side playback
+    """
+    if not voice_manager:
+        raise HTTPException(500, "Voice services not available - missing API keys")
+    
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(400, "text is required")
+    
+    try:
+        import hashlib
+        import uuid
+        
+        # Create cache key based on text content and voice settings
+        voice_id = body.voice_id or ELEVENLABS_VOICE_ID
+        model_id = body.model_id or "eleven_multilingual_v2"
+        fmt = (body.format or "mp3").lower()
+        
+        hash_key = hashlib.sha1(f"{voice_id}|{model_id}|{fmt}|{text}".encode()).hexdigest()
+        audio_filename = f"{hash_key}.{fmt}"
+        audio_path = Path(STATIC_AUDIO_DIR) / "audio" / audio_filename
+        
+        # Check if file already exists (caching)
+        if audio_path.exists():
+            audio_url = f"/static/audio/{audio_filename}"
+            return {
+                "text": text,
+                "audio_url": audio_url, 
+                "cached": True
+            }
+        
+        # Generate new audio using voice manager
+        os.makedirs(audio_path.parent, exist_ok=True)
+        
+        # Use ElevenLabs service directly with custom parameters
+        voice_service = voice_manager.elevenlabs
+        voice_service.voice_id = voice_id  # Override default voice
+        
+        # Custom TTS call with user parameters
+        data = {
+            "text": text,
+            "model_id": model_id,
+            "voice_settings": {
+                "stability": body.stability or 0.7,
+                "similarity_boost": body.similarity_boost or 0.7
+            }
+        }
+        
+        headers = {
+            "Accept": "audio/mpeg",
+            "Content-Type": "application/json", 
+            "xi-api-key": voice_service.api_key
+        }
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                f"{voice_service.base_url}/text-to-speech/{voice_id}",
+                headers=headers,
+                json=data
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"ElevenLabs API error: {response.status_code} - {response.text}")
+                raise HTTPException(response.status_code, f"ElevenLabs API error: {response.text}")
+            
+            # Save audio file
+            with open(audio_path, "wb") as f:
+                f.write(response.content)
+        
+        audio_url = f"/static/audio/{audio_filename}"
+        return {
+            "text": text,
+            "audio_url": audio_url,
+            "cached": False
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error in TTS endpoint: {e}")
+        raise HTTPException(502, f"TTS error: {str(e)}")
+
 
 # --- Health Check ---
 @app.get("/health")
@@ -688,3 +804,78 @@ async def admin_update_action_request(request_id: int, request: Request):
     except Exception as e:
         logger.error("Error in admin_update_action_request: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/voice-chat")
+async def voice_chat(
+    audio_file: UploadFile = File(...),
+    session_id: Optional[str] = None,
+    student_id: str = Depends(get_student_id)
+):
+    """
+    Voice chat endpoint: receive audio, transcribe, process, and return text + audio response
+    """
+    if not voice_manager:
+        raise HTTPException(
+            status_code=503, 
+            detail="Voice services not available - missing API keys"
+        )
+    
+    if not audio_file.content_type or not audio_file.content_type.startswith("audio"):
+        raise HTTPException(
+            status_code=400,
+            detail="File must be an audio file"
+        )
+    
+    # Generate session ID if not provided
+    if not session_id:
+        session_id = str(uuid.uuid4())
+    
+    try:
+        # Read audio file
+        audio_content = await audio_file.read()
+        
+        # Create a wrapper function for agent processing
+        async def ask_agent_func(text: str) -> dict:
+            chat_history = get_chat_history(session_id)
+            response = await agent_manager.process_message(
+                user_message=text,
+                chat_history=chat_history,
+                session_id=session_id,
+                student_id=student_id
+            )
+            return response
+        
+        # Process voice chat through VoiceManager
+        import io
+        audio_stream = io.BytesIO(audio_content)
+        result = await voice_manager.process_voice_chat(
+            audio_stream, 
+            audio_file.filename or "audio.webm",
+            ask_agent_func
+        )
+        
+        if result.get("error"):
+            raise HTTPException(status_code=500, detail=result["error"])
+        
+        # Update chat history if successful
+        if result.get("transcript") and result.get("text"):
+            add_to_chat_history(
+                session_id, 
+                result["transcript"], 
+                result["text"], 
+                {"agent": "voice_chat"}, 
+                student_id
+            )
+        
+        return {
+            "session_id": session_id,
+            "transcript": result.get("transcript"),
+            "text": result.get("text"),
+            "audio_url": result.get("audio_url")
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error in voice chat: {e}")
+        raise HTTPException(status_code=500, detail=f"Voice chat processing failed: {str(e)}")

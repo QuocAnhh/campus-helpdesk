@@ -1,4 +1,4 @@
-import { GraduationCap, Settings, LogOut, Ticket, User, MessageSquare } from 'lucide-react';
+import { GraduationCap, Settings, LogOut, Ticket, User, MessageSquare, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -38,6 +38,15 @@ export const UserLayout = ({ children }: UserLayoutProps) => {
               >
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Chat
+              </Button>
+            </Link>
+            <Link to="/voice-chat">
+              <Button 
+                variant={isActive('/voice-chat') ? 'default' : 'ghost'} 
+                size="sm"
+              >
+                <Mic className="h-4 w-4 mr-2" />
+                Voice Chat
               </Button>
             </Link>
             <Link to="/self-service">

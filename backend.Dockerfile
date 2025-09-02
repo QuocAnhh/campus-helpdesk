@@ -14,6 +14,9 @@ RUN pip install --no-cache-dir --timeout=100 -r requirements.txt
 COPY services/gateway/requirements.txt /app/gateway-requirements.txt
 RUN pip install --no-cache-dir --timeout=100 -r gateway-requirements.txt
 
+# Create static directory for audio files
+RUN mkdir -p /tmp/static/audio
+
 # Copy application code
 COPY common /app/common
 COPY prompts /app/prompts

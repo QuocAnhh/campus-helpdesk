@@ -1,13 +1,13 @@
 import { useChat } from '@/hooks/useChat';
 import { MessageList } from '@/components/chat/MessageList';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { GraduationCap, Settings, LogOut, Ticket, User } from 'lucide-react';
+import { GraduationCap, Settings, LogOut, Ticket, User, Volume2, VolumeX, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
 const ChatPage = () => {
-  const { messages, isLoading, sendMessage } = useChat();
+  const { messages, isLoading, sendMessage, autoSpeakEnabled, toggleAutoSpeak } = useChat();
   const { user, logout } = useAuth();
 
   return (
@@ -28,6 +28,25 @@ const ChatPage = () => {
           </div>
           
           <div className="flex items-center space-x-2">
+            <Button 
+              variant={autoSpeakEnabled ? "default" : "outline"} 
+              size="sm"
+              onClick={() => toggleAutoSpeak(!autoSpeakEnabled)}
+              title={autoSpeakEnabled ? "Turn off auto-speak" : "Turn on auto-speak"}
+            >
+              {autoSpeakEnabled ? (
+                <Volume2 className="h-4 w-4 mr-2" />
+              ) : (
+                <VolumeX className="h-4 w-4 mr-2" />
+              )}
+              {autoSpeakEnabled ? "Voice On" : "Voice Off"}
+            </Button>
+            <Link to="/call">
+              <Button variant="outline" size="sm">
+                <Phone className="h-4 w-4 mr-2" />
+                Voice Call
+              </Button>
+            </Link>
             <Link to="/self-service">
               <Button variant="ghost" size="sm">
                 <User className="h-4 w-4 mr-2" />
